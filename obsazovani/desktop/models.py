@@ -5,6 +5,8 @@ from typing import Any
 from PySide6.QtCore import QAbstractTableModel, QModelIndex, QSortFilterProxyModel, Qt, Signal
 from PySide6.QtGui import QBrush, QColor
 
+from obsazovani.i18n import t
+
 CASTING_SORT_ROLE = Qt.UserRole + 1
 CASTING_FILTER_TEXT_ROLE = Qt.UserRole + 2
 CASTING_ASSIGNED_ROLE = Qt.UserRole + 3
@@ -65,17 +67,17 @@ class CastingTableModel(QAbstractTableModel):
             return section + 1
 
         if section == 0:
-            return "Postava"
+            return t("col.character")
         if 1 <= section <= self.episode_count:
             return self._episode_labels[section - 1]
         if section == self.inputs_column:
-            return "Vstupy"
+            return t("col.inputs")
         if section == self.replicas_column:
-            return "Repliky"
+            return t("col.replicas")
         if section == self.actor_column:
-            return "Dabér"
+            return t("col.actor")
         if section == self.note_column:
-            return "Poznámka"
+            return t("col.note")
         return None
 
     def data(self, index: QModelIndex, role: int = Qt.DisplayRole) -> Any:
@@ -118,7 +120,7 @@ class CastingTableModel(QAbstractTableModel):
             return QBrush(QColor("#fff2e0"))
 
         if role == Qt.ToolTipRole and not row.get("actor"):
-            return "Postava zatím nemá přiřazeného dabéra."
+            return t("tooltip.unassigned")
 
         return None
 
@@ -268,7 +270,7 @@ class ActorSummaryTableModel(QAbstractTableModel):
             return None
         if orientation == Qt.Vertical:
             return section + 1
-        return ["Dabér", "Vstupy", "Repliky"][section]
+        return [t("col.actor"), t("col.inputs"), t("col.replicas")][section]
 
     def data(self, index: QModelIndex, role: int = Qt.DisplayRole) -> Any:
         if not index.isValid():
@@ -323,7 +325,7 @@ class ValidationTableModel(QAbstractTableModel):
             return None
         if orientation == Qt.Vertical:
             return section + 1
-        return ["Úroveň", "Oblast", "Detail"][section]
+        return [t("col.level"), t("col.area"), t("col.detail")][section]
 
     def data(self, index: QModelIndex, role: int = Qt.DisplayRole) -> Any:
         if not index.isValid():
@@ -335,7 +337,7 @@ class ValidationTableModel(QAbstractTableModel):
 
         if role == Qt.DisplayRole:
             if column == 0:
-                return "Upozornění" if severity == "warning" else "Info"
+                return t("severity.warning") if severity == "warning" else t("severity.info")
             if column == 1:
                 return row.get("category", "")
             if column == 2:

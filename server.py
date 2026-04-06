@@ -9,6 +9,7 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 from obsazovani import build_project, export_project_workbook
+from obsazovani.i18n import t
 
 ROOT = Path(__file__).resolve().parent
 WEB_ROOT = ROOT / "web"
@@ -57,7 +58,7 @@ class AppHandler(BaseHTTPRequestHandler):
         try:
             return json.loads(raw.decode("utf-8"))
         except json.JSONDecodeError as exc:
-            raise ValueError("Neplatný JSON payload.") from exc
+            raise ValueError(t("server.invalid_json")) from exc
 
     def send_json(self, payload: dict, status: HTTPStatus = HTTPStatus.OK) -> None:
         encoded = json.dumps(payload, ensure_ascii=False).encode("utf-8")

@@ -1,5 +1,129 @@
+// ─── Translations ────────────────────────────────────────────────────────────
+
+const TRANSLATIONS = {
+  cs: {
+    title: "Počítání replik a obsazování",
+    lede: 'Vlož vstupy po epizodách, nech si spočítat <strong>VSTUPY</strong> a <strong>REPLIKY</strong> podle pravidla <code>ceil(slov / 8)</code>, doplň dabéry a stáhni hotový <code>.xlsx</code> export.',
+    projectNameLabel: "Název projektu",
+    projectNameDefault: "Obsazení projektu",
+    recalculate: "Přepočítat",
+    recalculating: "Počítám…",
+    exportXlsx: "Export XLSX",
+    exporting: "Exportuji…",
+    inputKicker: "Vstup",
+    episodesHeading: "Epizody",
+    clearActive: "Vyčistit aktivní",
+    loadFile: "Načíst soubor",
+    episodeLabel: "Epizoda {label}",
+    formatsSupported: "Podporované formáty:",
+    formatRaw: "<code>POSTAVA / TC / TEXT</code> pro surový dialogový výpis",
+    formatSummary: "<code>POSTAVA / VSTUPY / REPLIKY</code> pro už spočítaný souhrn",
+    contentPlaceholder: "Sem vlož TSV/CSV s hlavičkami POSTAVA, TC, TEXT nebo POSTAVA, VSTUPY, REPLIKY.",
+    castingKicker: "Obsazení",
+    fullCastHeading: "Komplet postav",
+    summaryKicker: "Souhrn",
+    actorsHeading: "Dabéři",
+    // badges
+    badgeCharacters: "Postavy",
+    badgeInputs: "Vstupy",
+    badgeReplicas: "Repliky",
+    badgeMissing: "Neobsazeno",
+    // table headers
+    colCharacter: "Postava",
+    colInputs: "Vstupy",
+    colReplicas: "Repliky",
+    colActor: "Dabér",
+    colNote: "Poznámka",
+    // actor summary
+    actorInputs: "{n} vstupů",
+    actorReplicas: "{n} replik",
+    // status
+    statusMissing: "Chybí obsadit {chars} postav, {inputs} vstupů a {replicas} replik.",
+    statusOk: "Všechny postavy mají přiřazeného dabéra.",
+    // error
+    unknownError: "Neznámá chyba.",
+  },
+  en: {
+    title: "Replica counting and casting",
+    lede: 'Paste episode inputs, let it calculate <strong>INPUTS</strong> and <strong>REPLICAS</strong> using <code>ceil(words / 8)</code>, fill in voice actors and download the <code>.xlsx</code> export.',
+    projectNameLabel: "Project name",
+    projectNameDefault: "Project casting",
+    recalculate: "Recalculate",
+    recalculating: "Calculating…",
+    exportXlsx: "Export XLSX",
+    exporting: "Exporting…",
+    inputKicker: "Input",
+    episodesHeading: "Episodes",
+    clearActive: "Clear active",
+    loadFile: "Load file",
+    episodeLabel: "Episode {label}",
+    formatsSupported: "Supported formats:",
+    formatRaw: "<code>CHARACTER / TC / TEXT</code> for raw dialogue export",
+    formatSummary: "<code>CHARACTER / INPUTS / REPLICAS</code> for pre-calculated summary",
+    contentPlaceholder: "Paste TSV/CSV with headers CHARACTER, TC, TEXT or CHARACTER, INPUTS, REPLICAS.",
+    castingKicker: "Casting",
+    fullCastHeading: "Full cast",
+    summaryKicker: "Summary",
+    actorsHeading: "Voice actors",
+    // badges
+    badgeCharacters: "Characters",
+    badgeInputs: "Inputs",
+    badgeReplicas: "Replicas",
+    badgeMissing: "Unassigned",
+    // table headers
+    colCharacter: "Character",
+    colInputs: "Inputs",
+    colReplicas: "Replicas",
+    colActor: "Voice actor",
+    colNote: "Note",
+    // actor summary
+    actorInputs: "{n} inputs",
+    actorReplicas: "{n} replicas",
+    // status
+    statusMissing: "Missing {chars} characters, {inputs} inputs and {replicas} replicas.",
+    statusOk: "All characters have an assigned voice actor.",
+    // error
+    unknownError: "Unknown error.",
+  },
+};
+
+let currentLang = localStorage.getItem("obsazovani-lang") || "cs";
+
+function t(key, vars = {}) {
+  const dict = TRANSLATIONS[currentLang] || TRANSLATIONS.cs;
+  let str = dict[key] || TRANSLATIONS.cs[key] || key;
+  for (const [k, v] of Object.entries(vars)) {
+    str = str.replaceAll(`{${k}}`, v);
+  }
+  return str;
+}
+
+function applyI18n() {
+  document.documentElement.lang = currentLang;
+  document.querySelectorAll("[data-i18n]").forEach((el) => {
+    el.textContent = t(el.dataset.i18n);
+  });
+  document.querySelectorAll("[data-i18n-html]").forEach((el) => {
+    el.innerHTML = t(el.dataset.i18nHtml);
+  });
+  document.getElementById("project-title").placeholder = t("projectNameDefault");
+  document.getElementById("episode-content").placeholder = t("contentPlaceholder");
+
+  document.querySelectorAll(".lang-switcher button").forEach((btn) => {
+    btn.classList.toggle("is-active", btn.dataset.lang === currentLang);
+  });
+
+  // Re-render episode label
+  const episode = state.episodes[state.currentEpisode];
+  if (episode) {
+    elements.episodeLabel.textContent = t("episodeLabel", { label: episode.label });
+  }
+}
+
+// ─── State ───────────────────────────────────────────────────────────────────
+
 const state = {
-  title: "Obsazení projektu",
+  title: "",
   currentEpisode: 0,
   episodes: Array.from({ length: 6 }, (_, index) => ({
     label: String(index + 1).padStart(2, "0"),
@@ -24,6 +148,8 @@ const elements = {
   summaryBadges: document.getElementById("summary-badges"),
   statusBox: document.getElementById("status-box"),
   badgeTemplate: document.getElementById("badge-template"),
+  langCsButton: document.getElementById("lang-cs-button"),
+  langEnButton: document.getElementById("lang-en-button"),
 };
 
 function payload() {
@@ -65,8 +191,8 @@ async function postJson(url, body, responseType = "json") {
     body: JSON.stringify(body),
   });
   if (!response.ok) {
-    const problem = await response.json().catch(() => ({ error: "Neznámá chyba." }));
-    throw new Error(problem.error || "Neznámá chyba.");
+    const problem = await response.json().catch(() => ({ error: t("unknownError") }));
+    throw new Error(problem.error || t("unknownError"));
   }
   if (responseType === "blob") {
     return response.blob();
@@ -77,7 +203,7 @@ async function postJson(url, body, responseType = "json") {
 async function analyze() {
   try {
     elements.analyzeButton.disabled = true;
-    elements.analyzeButton.textContent = "Počítám…";
+    elements.analyzeButton.textContent = t("recalculating");
     state.analysis = await postJson("/api/analyze", payload());
     renderAnalysis();
   } catch (error) {
@@ -85,19 +211,19 @@ async function analyze() {
     elements.statusBox.className = "status-box is-error";
   } finally {
     elements.analyzeButton.disabled = false;
-    elements.analyzeButton.textContent = "Přepočítat";
+    elements.analyzeButton.textContent = t("recalculate");
   }
 }
 
 async function exportWorkbook() {
   try {
     elements.exportButton.disabled = true;
-    elements.exportButton.textContent = "Exportuji…";
+    elements.exportButton.textContent = t("exporting");
     const blob = await postJson("/api/export", payload(), "blob");
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement("a");
     anchor.href = url;
-    anchor.download = `${(state.title || "obsazeni").replace(/\s+/g, "-")}.xlsx`;
+    anchor.download = `${(state.title || "casting").replace(/\s+/g, "-")}.xlsx`;
     anchor.click();
     URL.revokeObjectURL(url);
   } catch (error) {
@@ -105,7 +231,7 @@ async function exportWorkbook() {
     elements.statusBox.className = "status-box is-error";
   } finally {
     elements.exportButton.disabled = false;
-    elements.exportButton.textContent = "Export XLSX";
+    elements.exportButton.textContent = t("exportXlsx");
   }
 }
 
@@ -117,7 +243,7 @@ function scheduleAnalyze() {
 
 function updateEpisodeEditor() {
   const episode = state.episodes[state.currentEpisode];
-  elements.episodeLabel.textContent = `Epizoda ${episode.label}`;
+  elements.episodeLabel.textContent = t("episodeLabel", { label: episode.label });
   elements.episodeContent.value = episode.content;
 }
 
@@ -142,10 +268,10 @@ function renderBadges() {
   if (!state.analysis) return;
 
   const items = [
-    ["Postavy", state.analysis.stats.characterCount],
-    ["Vstupy", state.analysis.stats.inputs],
-    ["Repliky", state.analysis.stats.replicas],
-    ["Neobsazeno", state.analysis.missing.characters],
+    [t("badgeCharacters"), state.analysis.stats.characterCount],
+    [t("badgeInputs"), state.analysis.stats.inputs],
+    [t("badgeReplicas"), state.analysis.stats.replicas],
+    [t("badgeMissing"), state.analysis.missing.characters],
   ];
 
   for (const [label, value] of items) {
@@ -165,12 +291,12 @@ function renderCastingTable() {
 
   elements.castingHead.innerHTML = `
     <tr>
-      <th>Postava</th>
+      <th>${t("colCharacter")}</th>
       ${episodeHeaders}
-      <th>Vstupy</th>
-      <th>Repliky</th>
-      <th>Dabér</th>
-      <th>Poznámka</th>
+      <th>${t("colInputs")}</th>
+      <th>${t("colReplicas")}</th>
+      <th>${t("colActor")}</th>
+      <th>${t("colNote")}</th>
     </tr>
   `;
 
@@ -210,9 +336,9 @@ function renderActorSummary() {
     article.innerHTML = `
       <div>
         <strong>${actor.actor}</strong>
-        <p>${actor.totalInputs} vstupů</p>
+        <p>${t("actorInputs", { n: actor.totalInputs })}</p>
       </div>
-      <span>${actor.totalReplicas} replik</span>
+      <span>${t("actorReplicas", { n: actor.totalReplicas })}</span>
     `;
     elements.actorSummary.appendChild(article);
   });
@@ -223,8 +349,8 @@ function renderStatus() {
   const missing = state.analysis.missing;
   elements.statusBox.className = `status-box${missing.characters ? " is-warning" : " is-ok"}`;
   elements.statusBox.textContent = missing.characters
-    ? `Chybí obsadit ${missing.characters} postav, ${missing.inputs} vstupů a ${missing.replicas} replik.`
-    : "Všechny postavy mají přiřazeného dabéra.";
+    ? t("statusMissing", { chars: missing.characters, inputs: missing.inputs, replicas: missing.replicas })
+    : t("statusOk");
 }
 
 function renderAnalysis() {
@@ -241,6 +367,21 @@ function escapeAttribute(value) {
     .replaceAll("<", "&lt;")
     .replaceAll(">", "&gt;");
 }
+
+// ─── Language switching ───────────────────────────────────────────────────────
+
+function switchLanguage(lang) {
+  if (currentLang === lang) return;
+  currentLang = lang;
+  localStorage.setItem("obsazovani-lang", lang);
+  applyI18n();
+  renderAnalysis();
+}
+
+elements.langCsButton.addEventListener("click", () => switchLanguage("cs"));
+elements.langEnButton.addEventListener("click", () => switchLanguage("en"));
+
+// ─── Event listeners ─────────────────────────────────────────────────────────
 
 elements.title.addEventListener("input", (event) => {
   state.title = event.target.value;
@@ -271,8 +412,12 @@ elements.episodeFileInput.addEventListener("change", async (event) => {
 elements.analyzeButton.addEventListener("click", analyze);
 elements.exportButton.addEventListener("click", exportWorkbook);
 
+// ─── Init ─────────────────────────────────────────────────────────────────────
+
 loadDraft();
+currentLang = localStorage.getItem("obsazovani-lang") || "cs";
 elements.title.value = state.title;
+applyI18n();
 renderEpisodeTabs();
 updateEpisodeEditor();
 analyze();

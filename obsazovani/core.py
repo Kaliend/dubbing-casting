@@ -7,6 +7,8 @@ import re
 import unicodedata
 from typing import Dict, Iterable, List, Tuple
 
+from .i18n import t
+
 WORD_RE = re.compile(r"\S+")
 SPACE_RE = re.compile(r"\s+")
 LOOSE_KEY_RE = re.compile(r"[^a-z0-9]+")
@@ -150,7 +152,7 @@ def detect_mapping(first_row: List[str]) -> Tuple[Dict[int, str], bool]:
     if len(first_row) == 2:
         return {0: "character", 1: "text"}, False
     if len(first_row) == 1:
-        raise ValueError("Vstup musí obsahovat aspoň sloupec POSTAVA a TEXT nebo VSTUPY/REPLIKY.")
+        raise ValueError(t("core.error.bad_input_cols"))
     return {}, False
 
 
@@ -185,7 +187,7 @@ def parse_rows(raw_text: str) -> Tuple[List[Dict[str, str]], str]:
         return parsed_rows, "dialogue"
     if "inputs" in mapping.values() and "replicas" in mapping.values():
         return parsed_rows, "summary"
-    raise ValueError("Nepodařilo se rozpoznat vstup. Očekávám hlavičky POSTAVA/TC/TEXT nebo POSTAVA/VSTUPY/REPLIKY.")
+    raise ValueError(t("core.error.unrecognized_input"))
 
 
 def aggregate_episode(rows: List[Dict[str, str]], source_mode: str, label: str) -> Dict[str, object]:
@@ -330,15 +332,12 @@ def build_validations(complete_rows: List[Dict[str, object]], episodes: List[Dic
 
         if not actor and total_replicas >= IMPORTANT_UNASSIGNED_REPLICAS_WARNING:
             works = [str(cell.get("label", "")) for cell in row.get("episodes", []) if int(cell.get("inputs", 0)) > 0]
-            works_suffix = f"; díla: {', '.join(works)}" if works else ""
+            works_suffix = t("val.unassigned.works", works=", ".join(works)) if works else ""
             append_validation(
                 validations,
                 "warning",
-                "Neobsazeno",
-                (
-                    f"Postava {character} zatím nemá dabéra "
-                    f"({total_inputs} vstupů, {total_replicas} replik{works_suffix})."
-                ),
+                t("cat.unassigned"),
+                t("val.unassigned", character=character, inputs=total_inputs, replicas=total_replicas, works=works_suffix),
                 weight=total_replicas,
             )
 
@@ -346,11 +345,8 @@ def build_validations(complete_rows: List[Dict[str, object]], episodes: List[Dic
             append_validation(
                 validations,
                 "info",
-                "Postavy",
-                (
-                    f"Postava {character} má {total_replicas} replik. "
-                    "Zkontroluj, jestli pod ní není víc konkrétních rolí."
-                ),
+                t("cat.characters"),
+                t("val.generic_bucket", character=character, replicas=total_replicas),
                 weight=total_replicas,
             )
 
@@ -401,8 +397,8 @@ def build_validations(complete_rows: List[Dict[str, object]], episodes: List[Dic
         append_validation(
             validations,
             "warning",
-            "Jména",
-            f"Možná jde o stejnou postavu: {', '.join(ordered)}.",
+            t("cat.names"),
+            t("val.char_variants", variants=", ".join(ordered)),
             weight=len(ordered),
             kind="character_variants",
             variants=ordered,
@@ -416,8 +412,8 @@ def build_validations(complete_rows: List[Dict[str, object]], episodes: List[Dic
         append_validation(
             validations,
             "info",
-            "Jména",
-            f"Možná jde o stejného dabéra: {', '.join(ordered)}.",
+            t("cat.names"),
+            t("val.actor_variants", variants=", ".join(ordered)),
             weight=len(ordered),
             kind="actor_variants",
             variants=ordered,
@@ -441,11 +437,8 @@ def build_validations(complete_rows: List[Dict[str, object]], episodes: List[Dic
             append_validation(
                 validations,
                 total_load_severity,
-                "Zátěž",
-                (
-                    f"Dabér {actor} má vysokou celkovou zátěž "
-                    f"({total_inputs} vstupů, {total_replicas} replik)."
-                ),
+                t("cat.load"),
+                t("val.actor_high_load", actor=actor, inputs=total_inputs, replicas=total_replicas),
                 weight=total_replicas,
             )
         elif (
@@ -455,11 +448,8 @@ def build_validations(complete_rows: List[Dict[str, object]], episodes: List[Dic
             append_validation(
                 validations,
                 "info",
-                "Obsazení",
-                (
-                    f"Dabér {actor} má přiřazeno {character_count} postav "
-                    f"({total_inputs} vstupů, {total_replicas} replik)."
-                ),
+                t("cat.casting"),
+                t("val.actor_many_chars", actor=actor, chars=character_count, inputs=total_inputs, replicas=total_replicas),
                 weight=total_replicas,
             )
 
@@ -485,11 +475,8 @@ def build_validations(complete_rows: List[Dict[str, object]], episodes: List[Dic
                 append_validation(
                     validations,
                     episode_load_severity,
-                    "Zátěž",
-                    (
-                        f"Dabér {actor} má v díle {label} vysokou zátěž "
-                        f"({episode_inputs} vstupů, {episode_replicas} replik)."
-                    ),
+                    t("cat.load"),
+                    t("val.actor_episode_high_load", actor=actor, label=label, inputs=episode_inputs, replicas=episode_replicas),
                     weight=episode_replicas,
                 )
             elif (
@@ -499,11 +486,8 @@ def build_validations(complete_rows: List[Dict[str, object]], episodes: List[Dic
                 append_validation(
                     validations,
                     "info",
-                    "Obsazení",
-                    (
-                        f"Dabér {actor} má v díle {label} {episode_character_count} postavy "
-                        f"({episode_inputs} vstupů, {episode_replicas} replik)."
-                    ),
+                    t("cat.casting"),
+                    t("val.actor_episode_many_chars", actor=actor, label=label, chars=episode_character_count, inputs=episode_inputs, replicas=episode_replicas),
                     weight=episode_replicas,
                 )
 

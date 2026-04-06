@@ -31,6 +31,7 @@ from PySide6.QtWidgets import (
 
 from obsazovani.app_state import AppState, BulkImportPlanEntry
 from obsazovani.core import MAX_EPISODES, normalize_text
+from obsazovani.i18n import get_language, set_language, t
 from obsazovani.desktop.models import (
     ActorSummaryTableModel,
     CastingFilterProxyModel,
@@ -49,7 +50,7 @@ from obsazovani.project_store import (
 
 def slugify_filename(value: str) -> str:
     cleaned = re.sub(r"[^A-Za-z0-9._-]+", "-", value.strip())
-    return cleaned.strip("-") or "obsazeni"
+    return cleaned.strip("-") or "casting"
 
 
 class CastingEditorDelegate(QStyledItemDelegate):
@@ -103,66 +104,80 @@ class MainWindow(QMainWindow):
         self.refresh_analysis()
 
     def _create_actions(self) -> None:
-        self._new_action = QAction("Nový projekt", self)
+        self._new_action = QAction(t("action.new_project"), self)
         self._new_action.setShortcut(QKeySequence.New)
         self._new_action.triggered.connect(self.new_project)
 
-        self._open_action = QAction("Otevřít projekt...", self)
+        self._open_action = QAction(t("action.open_project"), self)
         self._open_action.setShortcut(QKeySequence.Open)
         self._open_action.triggered.connect(self.open_project)
 
-        self._bulk_import_action = QAction("Hromadný import děl...", self)
+        self._bulk_import_action = QAction(t("action.bulk_import"), self)
         self._bulk_import_action.triggered.connect(self.bulk_import_episodes)
 
-        self._save_action = QAction("Uložit projekt", self)
+        self._save_action = QAction(t("action.save_project"), self)
         self._save_action.setShortcut(QKeySequence.Save)
         self._save_action.triggered.connect(self.save_project)
 
-        self._save_as_action = QAction("Uložit projekt jako...", self)
+        self._save_as_action = QAction(t("action.save_as"), self)
         self._save_as_action.setShortcut(QKeySequence.SaveAs)
         self._save_as_action.triggered.connect(self.save_project_as)
 
-        self._recalculate_action = QAction("Přepočítat", self)
+        self._recalculate_action = QAction(t("action.recalculate"), self)
         self._recalculate_action.setShortcut("Ctrl+R")
         self._recalculate_action.triggered.connect(self.refresh_analysis)
 
-        self._export_action = QAction("Export XLSX...", self)
+        self._export_action = QAction(t("action.export_xlsx"), self)
         self._export_action.setShortcut("Ctrl+E")
         self._export_action.triggered.connect(self.export_workbook)
 
-        self._komplet_focus_action = QAction("Režim Komplet", self)
+        self._komplet_focus_action = QAction(t("action.komplet_focus"), self)
         self._komplet_focus_action.setCheckable(True)
         self._komplet_focus_action.setShortcut("Ctrl+Shift+K")
-        self._komplet_focus_action.setToolTip("Skryje vedlejší panely a zvětší sekci Komplet.")
+        self._komplet_focus_action.setToolTip(t("action.komplet_focus.tip"))
         self._komplet_focus_action.toggled.connect(self._set_komplet_focus_mode)
 
-        self._quit_action = QAction("Konec", self)
+        self._quit_action = QAction(t("action.quit"), self)
         self._quit_action.setShortcut(QKeySequence.Quit)
         self._quit_action.triggered.connect(self.close)
 
+        self._lang_cs_action = QAction(t("action.lang_cs"), self)
+        self._lang_cs_action.setCheckable(True)
+        self._lang_cs_action.triggered.connect(lambda: self._switch_language("cs"))
+
+        self._lang_en_action = QAction(t("action.lang_en"), self)
+        self._lang_en_action.setCheckable(True)
+        self._lang_en_action.triggered.connect(lambda: self._switch_language("en"))
+
+        self._update_lang_action_checks()
+
     def _build_ui(self) -> None:
-        self.setWindowTitle("Obsazování")
+        self.setWindowTitle(t("app.name"))
         self.resize(1500, 920)
         self.setMinimumSize(1180, 760)
         self._apply_style()
 
-        file_menu = self.menuBar().addMenu("Soubor")
-        file_menu.addAction(self._new_action)
-        file_menu.addAction(self._open_action)
-        file_menu.addAction(self._bulk_import_action)
-        file_menu.addSeparator()
-        file_menu.addAction(self._save_action)
-        file_menu.addAction(self._save_as_action)
-        file_menu.addSeparator()
-        file_menu.addAction(self._export_action)
-        file_menu.addSeparator()
-        file_menu.addAction(self._quit_action)
+        self._file_menu = self.menuBar().addMenu(t("menu.file"))
+        self._file_menu.addAction(self._new_action)
+        self._file_menu.addAction(self._open_action)
+        self._file_menu.addAction(self._bulk_import_action)
+        self._file_menu.addSeparator()
+        self._file_menu.addAction(self._save_action)
+        self._file_menu.addAction(self._save_as_action)
+        self._file_menu.addSeparator()
+        self._file_menu.addAction(self._export_action)
+        self._file_menu.addSeparator()
+        self._file_menu.addAction(self._quit_action)
 
-        tools_menu = self.menuBar().addMenu("Nástroje")
-        tools_menu.addAction(self._recalculate_action)
-        tools_menu.addAction(self._komplet_focus_action)
+        self._tools_menu = self.menuBar().addMenu(t("menu.tools"))
+        self._tools_menu.addAction(self._recalculate_action)
+        self._tools_menu.addAction(self._komplet_focus_action)
 
-        toolbar = QToolBar("Hlavní panel", self)
+        self._lang_menu = self.menuBar().addMenu(t("menu.language"))
+        self._lang_menu.addAction(self._lang_cs_action)
+        self._lang_menu.addAction(self._lang_en_action)
+
+        toolbar = QToolBar(t("toolbar.main"), self)
         toolbar.setMovable(False)
         toolbar.addAction(self._new_action)
         toolbar.addAction(self._open_action)
@@ -179,17 +194,16 @@ class MainWindow(QMainWindow):
         self.setStatusBar(status_bar)
 
         self._title_edit = QLineEdit()
-        self._title_edit.setPlaceholderText("Název projektu")
-        self._herci_by_episode_checkbox = QCheckBox("V exportu rozdělit HERCI po dílech")
-        self._herci_by_episode_checkbox.setToolTip(
-            "Přidá do listu HERCI dvojice sloupců VSTUPY/REPLIKY pro každé aktivní dílo."
-        )
+        self._title_edit.setPlaceholderText(t("title.placeholder"))
+        self._herci_by_episode_checkbox = QCheckBox(t("checkbox.herci_by_episode"))
+        self._herci_by_episode_checkbox.setToolTip(t("checkbox.herci_by_episode.tip"))
 
         title_row = QHBoxLayout()
-        title_label = QLabel("Název projektu")
-        title_label.setMinimumWidth(110)
-        title_row.addWidget(title_label)
+        self._title_label = QLabel(t("label.project_name"))
+        self._title_label.setMinimumWidth(110)
+        title_row.addWidget(self._title_label)
         title_row.addWidget(self._title_edit, 1)
+        self._title_row = title_row
 
         export_options_row = QHBoxLayout()
         export_options_row.addWidget(self._herci_by_episode_checkbox)
@@ -197,25 +211,27 @@ class MainWindow(QMainWindow):
 
         self._casting_search_edit = QLineEdit()
         self._casting_search_edit.setClearButtonEnabled(True)
-        self._casting_search_edit.setPlaceholderText("Hledat v postavách, dabérech a poznámkách")
+        self._casting_search_edit.setPlaceholderText(t("search.placeholder"))
         self._casting_filter_combo = QComboBox()
-        self._casting_filter_combo.addItem("Všechny postavy", CastingFilterProxyModel.FILTER_ALL)
-        self._casting_filter_combo.addItem("Jen neobsazené", CastingFilterProxyModel.FILTER_UNASSIGNED)
-        self._casting_filter_combo.addItem("Jen obsazené", CastingFilterProxyModel.FILTER_ASSIGNED)
+        self._casting_filter_combo.addItem(t("filter.all"), CastingFilterProxyModel.FILTER_ALL)
+        self._casting_filter_combo.addItem(t("filter.unassigned"), CastingFilterProxyModel.FILTER_UNASSIGNED)
+        self._casting_filter_combo.addItem(t("filter.assigned"), CastingFilterProxyModel.FILTER_ASSIGNED)
 
+        self._search_label = QLabel(t("label.search"))
+        self._show_label = QLabel(t("label.show"))
         casting_tools_row = QHBoxLayout()
-        casting_tools_row.addWidget(QLabel("Hledat"))
+        casting_tools_row.addWidget(self._search_label)
         casting_tools_row.addWidget(self._casting_search_edit, 1)
-        casting_tools_row.addWidget(QLabel("Zobrazit"))
+        casting_tools_row.addWidget(self._show_label)
         casting_tools_row.addWidget(self._casting_filter_combo)
 
         metrics_row = QHBoxLayout()
         metrics_row.setSpacing(10)
         for key, label in (
-            ("characterCount", "Postavy"),
-            ("inputs", "Vstupy"),
-            ("replicas", "Repliky"),
-            ("missing", "Neobsazeno"),
+            ("characterCount", t("metric.characters")),
+            ("inputs", t("metric.inputs")),
+            ("replicas", t("metric.replicas")),
+            ("missing", t("metric.missing")),
         ):
             card, value_label = self._create_metric_card(label)
             metrics_row.addWidget(card)
@@ -225,9 +241,9 @@ class MainWindow(QMainWindow):
         self._episode_tabs = QTabWidget()
         self._episode_tabs.setDocumentMode(True)
 
-        self._add_episode_button = QPushButton("Přidat dílo")
-        self._rename_episode_button = QPushButton("Přejmenovat dílo")
-        self._remove_episode_button = QPushButton("Odebrat dílo")
+        self._add_episode_button = QPushButton(t("btn.add_episode"))
+        self._rename_episode_button = QPushButton(t("btn.rename_episode"))
+        self._remove_episode_button = QPushButton(t("btn.remove_episode"))
 
         episode_actions = QHBoxLayout()
         episode_actions.addWidget(self._add_episode_button)
@@ -235,7 +251,7 @@ class MainWindow(QMainWindow):
         episode_actions.addWidget(self._remove_episode_button)
         episode_actions.addStretch(1)
 
-        editor_group = QGroupBox("Díla")
+        editor_group = QGroupBox(t("group.episodes"))
         editor_layout = QVBoxLayout(editor_group)
         editor_layout.addLayout(episode_actions)
         editor_layout.addWidget(self._episode_tabs)
@@ -253,7 +269,7 @@ class MainWindow(QMainWindow):
         self._configure_casting_table_columns()
         self._configure_casting_table_appearance()
 
-        komplet_group = QGroupBox("Komplet")
+        komplet_group = QGroupBox(t("group.komplet"))
         komplet_layout = QVBoxLayout(komplet_group)
         komplet_layout.addLayout(metrics_row)
         komplet_layout.addLayout(casting_tools_row)
@@ -275,7 +291,7 @@ class MainWindow(QMainWindow):
         self._status_label.setWordWrap(True)
         self._status_label.setProperty("statusLevel", "info")
 
-        summary_group = QGroupBox("Souhrn dabérů")
+        summary_group = QGroupBox(t("group.actor_summary"))
         summary_layout = QVBoxLayout(summary_group)
         summary_layout.addWidget(self._actor_table, 1)
         summary_layout.addWidget(self._status_label)
@@ -293,21 +309,14 @@ class MainWindow(QMainWindow):
         self._validation_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeToContents)
         self._validation_table.horizontalHeader().setSectionResizeMode(2, QHeaderView.Stretch)
 
-        self._validation_action_button = QPushButton("Sjednotit název...")
+        self._validation_action_button = QPushButton(t("btn.unify_name"))
         self._validation_action_button.setEnabled(False)
-        self._validation_action_button.setToolTip(
-            "Dostupné jen pro validace typu možná jde o stejného dabéra."
-        )
+        self._validation_action_button.setToolTip(t("btn.unify_name.tip"))
 
-        self._validation_status_label = QLabel()
-        self._validation_status_label.setWordWrap(True)
-        self._validation_status_label.setProperty("statusLevel", "info")
-
-        validation_group = QGroupBox("Validace")
+        validation_group = QGroupBox(t("group.validation"))
         validation_layout = QVBoxLayout(validation_group)
         validation_layout.addWidget(self._validation_table, 1)
         validation_layout.addWidget(self._validation_action_button)
-        validation_layout.addWidget(self._validation_status_label)
         self._validation_group = validation_group
 
         right_splitter = QSplitter(Qt.Vertical)
@@ -600,31 +609,25 @@ class MainWindow(QMainWindow):
             self._validation_group.hide()
             self._root_splitter.setSizes([0, max(1, self._default_root_splitter_sizes()[1])])
             self._right_splitter.setSizes([max(1, self._default_right_splitter_sizes()[0]), 0, 0])
-            self.statusBar().showMessage("Režim Komplet je zapnutý.", 3000)
+            self.statusBar().showMessage(t("status.komplet_on"), 3000)
             return
 
         self._editor_group.show()
         self._summary_group.show()
         self._validation_group.show()
         self._restore_splitter_sizes()
-        self.statusBar().showMessage("Původní rozvržení je obnovené.", 3000)
+        self.statusBar().showMessage(t("status.komplet_off"), 3000)
 
     def _update_window_title(self) -> None:
-        project_name = self._state.project_path.name if self._state.project_path else "Neuložený projekt"
+        project_name = self._state.project_path.name if self._state.project_path else t("project.unsaved")
         dirty_marker = "*" if self._state.dirty else ""
-        self.setWindowTitle(f"{dirty_marker}{self._state.title or 'Obsazení projektu'} · {project_name}")
+        self.setWindowTitle(f"{dirty_marker}{self._state.title or t('project.default_title')} · {project_name}")
 
     def _set_summary_status(self, text: str, level: str) -> None:
         self._status_label.setProperty("statusLevel", level)
         self._status_label.setText(text)
         self._status_label.style().unpolish(self._status_label)
         self._status_label.style().polish(self._status_label)
-
-    def _set_validation_status(self, text: str, level: str) -> None:
-        self._validation_status_label.setProperty("statusLevel", level)
-        self._validation_status_label.setText(text)
-        self._validation_status_label.style().unpolish(self._validation_status_label)
-        self._validation_status_label.style().polish(self._validation_status_label)
 
     def _selected_validation(self) -> dict | None:
         current_index = self._validation_table.currentIndex()
@@ -662,36 +665,27 @@ class MainWindow(QMainWindow):
         if int(missing.get("characters", 0)) > 0:
             validation_suffix = ""
             if warning_count or info_count:
-                validation_suffix = f" Další validace: {warning_count} upozornění"
+                validation_suffix = t("summary.missing.also", warnings=warning_count)
                 if info_count:
-                    validation_suffix += f", {info_count} informací."
+                    validation_suffix += t("summary.missing.also.info", info=info_count)
                 else:
-                    validation_suffix += "."
+                    validation_suffix += t("summary.missing.also.no_info")
             self._set_summary_status(
-                (
-                    f"Chybí obsadit {missing.get('characters', 0)} postav, "
-                    f"{missing.get('inputs', 0)} vstupů a {missing.get('replicas', 0)} replik."
-                    f"{validation_suffix}"
-                ),
+                t("summary.missing",
+                  chars=missing.get("characters", 0),
+                  inputs=missing.get("inputs", 0),
+                  replicas=missing.get("replicas", 0)) + validation_suffix,
                 "warning",
             )
         elif warning_count > 0:
-            suffix = f" a {info_count} informací" if info_count else ""
-            self._set_summary_status(f"Validace našla {warning_count} upozornění{suffix}.", "warning")
+            suffix = t("summary.validation.warnings.suffix", info=info_count) if info_count else ""
+            self._set_summary_status(t("summary.validation.warnings", warnings=warning_count, suffix=suffix), "warning")
         elif info_count > 0:
-            self._set_summary_status(f"Validace našla {info_count} informací.", "info")
+            self._set_summary_status(t("summary.validation.info_only", info=info_count), "info")
         else:
-            self._set_summary_status("Všechny postavy mají přiřazeného dabéra.", "ok")
+            self._set_summary_status(t("summary.ok"), "ok")
 
-        if warning_count > 0:
-            suffix = f" a {info_count} informací" if info_count else ""
-            self._set_validation_status(f"Validace hlásí {warning_count} upozornění{suffix}.", "warning")
-        elif info_count > 0:
-            self._set_validation_status(f"Validace hlásí {info_count} informací.", "info")
-        else:
-            self._set_validation_status("Další rizika nebyla nalezena.", "ok")
-
-        self.statusBar().showMessage("Přehled je aktuální.", 3000)
+        self.statusBar().showMessage(t("status.analysis_current"), 3000)
 
     def unify_selected_validation_actor_name(self) -> None:
         validation = self._selected_validation()
@@ -704,25 +698,25 @@ class MainWindow(QMainWindow):
             if normalize_text(str(variant))
         ]
         if len(variants) < 2:
-            QMessageBox.information(self, "Sjednocení názvu", "Vybraná validace neobsahuje dost variant pro sjednocení.")
+            QMessageBox.information(self, t("unify.info.title"), t("unify.info.not_enough"))
             return
 
         choice, accepted = QInputDialog.getItem(
             self,
-            "Sjednotit název dabéra",
-            "Vyber cílový název dabéra:",
-            [*variants, "Vlastní název..."],
+            t("unify.title"),
+            t("unify.label"),
+            [*variants, t("unify.custom")],
             editable=False,
         )
         if not accepted:
             return
 
         target_name = choice
-        if choice == "Vlastní název...":
+        if choice == t("unify.custom"):
             custom_name, custom_accepted = QInputDialog.getText(
                 self,
-                "Vlastní název dabéra",
-                "Zadej sjednocený název dabéra:",
+                t("unify.custom.title"),
+                t("unify.custom.label"),
                 text=variants[0],
             )
             if not custom_accepted:
@@ -731,16 +725,13 @@ class MainWindow(QMainWindow):
 
         normalized_target = normalize_text(target_name)
         if not normalized_target:
-            QMessageBox.warning(self, "Sjednocení selhalo", "Cílový název dabéra nesmí být prázdný.")
+            QMessageBox.warning(self, t("unify.fail.title"), t("unify.fail.empty"))
             return
 
         confirmation = QMessageBox.question(
             self,
-            "Potvrdit sjednocení názvu",
-            (
-                "Opravdu chceš sjednotit varianty dabéra "
-                f"{', '.join(variants)} na „{normalized_target}“?"
-            ),
+            t("unify.confirm.title"),
+            t("unify.confirm.msg", variants=", ".join(variants), name=normalized_target),
             QMessageBox.Yes | QMessageBox.Cancel,
             QMessageBox.Yes,
         )
@@ -750,16 +741,16 @@ class MainWindow(QMainWindow):
         try:
             changed = self._state.unify_actor_variants(variants, normalized_target)
         except Exception as exc:  # noqa: BLE001
-            QMessageBox.warning(self, "Sjednocení selhalo", str(exc))
+            QMessageBox.warning(self, t("unify.fail.title"), str(exc))
             return
 
         if changed <= 0:
-            QMessageBox.information(self, "Sjednocení názvu", "V projektu nebyla nalezena žádná odpovídající obsazení.")
+            QMessageBox.information(self, t("unify.info.title"), t("unify.info.none_found"))
             return
 
         self.refresh_analysis()
         self._update_window_title()
-        self.statusBar().showMessage(f"Sjednocen název dabéra na {normalized_target}.", 4000)
+        self.statusBar().showMessage(t("status.actor_unified", name=normalized_target), 4000)
 
     def refresh_analysis(self) -> None:
         try:
@@ -778,7 +769,7 @@ class MainWindow(QMainWindow):
         self._state.reset()
         self._populate_from_state()
         self.refresh_analysis()
-        self.statusBar().showMessage("Vytvořen nový projekt.", 3000)
+        self.statusBar().showMessage(t("status.new_project"), 3000)
 
     def open_project(self) -> None:
         if not self._maybe_save():
@@ -786,9 +777,9 @@ class MainWindow(QMainWindow):
 
         selected, _ = QFileDialog.getOpenFileName(
             self,
-            "Otevřít projekt",
+            t("dialog.open_project"),
             str(self._state.project_path.parent if self._state.project_path else Path.cwd()),
-            "Projekt Obsazování (*.json);;JSON (*.json)",
+            t("filter.project_file"),
         )
         if not selected:
             return
@@ -796,12 +787,12 @@ class MainWindow(QMainWindow):
         try:
             self._state.load_project(Path(selected))
         except Exception as exc:  # noqa: BLE001
-            QMessageBox.critical(self, "Načtení projektu selhalo", str(exc))
+            QMessageBox.critical(self, t("error.open_project"), str(exc))
             return
 
         self._populate_from_state()
         self.refresh_analysis()
-        self.statusBar().showMessage("Projekt načten.", 3000)
+        self.statusBar().showMessage(t("status.project_loaded"), 3000)
 
     def save_project(self) -> bool:
         if self._state.project_path is None:
@@ -810,22 +801,22 @@ class MainWindow(QMainWindow):
         try:
             self._state.save_project()
         except Exception as exc:  # noqa: BLE001
-            QMessageBox.critical(self, "Uložení projektu selhalo", str(exc))
+            QMessageBox.critical(self, t("error.save_project"), str(exc))
             return False
 
         self._update_window_title()
-        self.statusBar().showMessage("Projekt uložen.", 3000)
+        self.statusBar().showMessage(t("status.project_saved"), 3000)
         return True
 
     def save_project_as(self) -> bool:
-        default_name = slugify_filename(self._state.title or "obsazeni-projektu")
+        default_name = slugify_filename(self._state.title or "casting-project")
         base_dir = self._state.project_path.parent if self._state.project_path else Path.cwd()
         default_path = base_dir / f"{default_name}.json"
         selected, _ = QFileDialog.getSaveFileName(
             self,
-            "Uložit projekt jako",
+            t("dialog.save_as"),
             str(default_path),
-            "Projekt Obsazování (*.json);;JSON (*.json)",
+            t("filter.project_file"),
         )
         if not selected:
             return False
@@ -837,25 +828,25 @@ class MainWindow(QMainWindow):
         try:
             self._state.save_project(target)
         except Exception as exc:  # noqa: BLE001
-            QMessageBox.critical(self, "Uložení projektu selhalo", str(exc))
+            QMessageBox.critical(self, t("error.save_project"), str(exc))
             return False
 
         self._update_window_title()
-        self.statusBar().showMessage(f"Projekt uložen do {target.name}.", 3000)
+        self.statusBar().showMessage(t("status.project_saved_to", name=target.name), 3000)
         return True
 
     def add_episode(self) -> None:
         try:
             episode_index = self._state.add_episode()
         except Exception as exc:  # noqa: BLE001
-            QMessageBox.warning(self, "Nelze přidat dílo", str(exc))
+            QMessageBox.warning(self, t("error.add_episode"), str(exc))
             return
 
         label = self._state.episode_label(episode_index)
         self._populate_from_state(episode_index)
         self.refresh_analysis()
         self._update_window_title()
-        self.statusBar().showMessage(f"Přidáno dílo {label}.", 3000)
+        self.statusBar().showMessage(t("status.episode_added", label=label), 3000)
 
     def rename_current_episode(self) -> None:
         episode_index = self._episode_tabs.currentIndex()
@@ -865,8 +856,8 @@ class MainWindow(QMainWindow):
         current_label = self._state.episode_label(episode_index)
         label, accepted = QInputDialog.getText(
             self,
-            "Přejmenovat dílo",
-            "Název díla:",
+            t("rename.title"),
+            t("rename.label"),
             text=current_label,
         )
         if not accepted:
@@ -875,14 +866,14 @@ class MainWindow(QMainWindow):
         try:
             self._state.rename_episode(episode_index, label)
         except Exception as exc:  # noqa: BLE001
-            QMessageBox.warning(self, "Přejmenování selhalo", str(exc))
+            QMessageBox.warning(self, t("error.rename_episode"), str(exc))
             return
 
         updated_label = self._state.episode_label(episode_index)
         self._populate_from_state(episode_index)
         self.refresh_analysis()
         self._update_window_title()
-        self.statusBar().showMessage(f"Dílo bylo přejmenováno na {updated_label}.", 3000)
+        self.statusBar().showMessage(t("status.episode_renamed", label=updated_label), 3000)
 
     def remove_current_episode(self) -> None:
         episode_index = self._episode_tabs.currentIndex()
@@ -892,8 +883,8 @@ class MainWindow(QMainWindow):
         label = self._state.episode_label(episode_index)
         result = QMessageBox.question(
             self,
-            "Odebrat dílo",
-            f"Opravdu chceš odebrat dílo {label}? Jeho obsah bude smazán.",
+            t("confirm.remove_episode.title"),
+            t("confirm.remove_episode", label=label),
             QMessageBox.Yes | QMessageBox.Cancel,
             QMessageBox.Cancel,
         )
@@ -903,23 +894,23 @@ class MainWindow(QMainWindow):
         try:
             self._state.remove_episode(episode_index)
         except Exception as exc:  # noqa: BLE001
-            QMessageBox.warning(self, "Odebrání selhalo", str(exc))
+            QMessageBox.warning(self, t("error.remove_episode"), str(exc))
             return
 
         next_index = max(0, min(episode_index, self._state.episode_count - 1))
         self._populate_from_state(next_index)
         self.refresh_analysis()
         self._update_window_title()
-        self.statusBar().showMessage(f"Dílo {label} bylo odebráno.", 3000)
+        self.statusBar().showMessage(t("status.episode_removed", label=label), 3000)
 
     def import_episode_file(self, episode_index: int) -> None:
         label = self._state.episode_label(episode_index)
         start_dir = self._state.project_path.parent if self._state.project_path else Path.cwd()
         selected, _ = QFileDialog.getOpenFileName(
             self,
-            f"Načíst vstup pro dílo {label}",
+            t("dialog.load_input", label=label),
             str(start_dir),
-            "Podporované vstupy (*.txt *.tsv *.csv *.xlsx *.doc *.docx);;Všechny soubory (*)",
+            t("filter.input_files"),
         )
         if not selected:
             return
@@ -931,15 +922,15 @@ class MainWindow(QMainWindow):
             try:
                 options = list_episode_source_options(path)
             except Exception as exc:  # noqa: BLE001
-                QMessageBox.critical(self, "Načtení vstupu selhalo", str(exc))
+                QMessageBox.critical(self, t("error.load_input"), str(exc))
                 return
 
             if len(options) > 1:
                 items = [option.display_name for option in options]
                 selection, accepted = QInputDialog.getItem(
                     self,
-                    "Vybrat list pro import",
-                    "Excel obsahuje více použitelných listů. Vyber list pro aktivní dílo:",
+                    t("dialog.select_sheet"),
+                    t("dialog.select_sheet.msg"),
                     items,
                     editable=False,
                 )
@@ -955,7 +946,7 @@ class MainWindow(QMainWindow):
         try:
             content = self._state.import_episode_file(episode_index, path, sheet_name=selected_sheet_name)
         except Exception as exc:  # noqa: BLE001
-            QMessageBox.critical(self, "Načtení vstupu selhalo", str(exc))
+            QMessageBox.critical(self, t("error.load_input"), str(exc))
             return
 
         self._episode_tabs.setCurrentIndex(episode_index)
@@ -963,9 +954,9 @@ class MainWindow(QMainWindow):
         self.refresh_analysis()
         self._update_window_title()
         if selected_sheet_label:
-            self.statusBar().showMessage(f"Načteno dílo {label} z listu {selected_sheet_label}.", 3000)
+            self.statusBar().showMessage(t("status.episode_loaded_sheet", label=label, sheet=selected_sheet_label), 3000)
         else:
-            self.statusBar().showMessage(f"Načteno dílo {label}.", 3000)
+            self.statusBar().showMessage(t("status.episode_loaded", label=label), 3000)
 
     def bulk_import_episodes(self) -> None:
         start_index = self._episode_tabs.currentIndex()
@@ -975,7 +966,7 @@ class MainWindow(QMainWindow):
         try:
             sources = self._choose_bulk_import_sources()
         except Exception as exc:  # noqa: BLE001
-            QMessageBox.critical(self, "Hromadný import selhal", str(exc))
+            QMessageBox.critical(self, t("error.bulk_import"), str(exc))
             return
         if not sources:
             return
@@ -983,7 +974,7 @@ class MainWindow(QMainWindow):
         try:
             plan = self._state.preview_bulk_import(start_index, sources)
         except Exception as exc:  # noqa: BLE001
-            QMessageBox.warning(self, "Hromadný import nelze provést", str(exc))
+            QMessageBox.warning(self, t("error.bulk_import_warning"), str(exc))
             return
 
         if not self._confirm_bulk_import(plan):
@@ -992,48 +983,46 @@ class MainWindow(QMainWindow):
         try:
             imported_indexes = self._state.apply_bulk_import(plan)
         except Exception as exc:  # noqa: BLE001
-            QMessageBox.critical(self, "Hromadný import selhal", str(exc))
+            QMessageBox.critical(self, t("error.bulk_import"), str(exc))
             return
 
         selected_index = imported_indexes[0] if imported_indexes else start_index
         self._populate_from_state(selected_index)
         self.refresh_analysis()
         self._update_window_title()
-        self.statusBar().showMessage(f"Hromadně naimportováno {len(plan)} děl.", 4000)
+        self.statusBar().showMessage(t("status.bulk_imported", count=len(plan)), 4000)
 
     def _choose_bulk_import_sources(self) -> list[BulkImportSource]:
+        opt_workbook = t("bulk.source.workbook")
+        opt_files = t("bulk.source.files")
         mode, accepted = QInputDialog.getItem(
             self,
-            "Hromadný import děl",
-            "Vyber zdroj hromadného importu:",
-            [
-                "Jeden workbook s více listy",
-                "Více souborů",
-                "Složka se soubory",
-            ],
+            t("dialog.bulk_import"),
+            t("dialog.bulk_import.msg"),
+            [opt_workbook, opt_files, t("bulk.source.dir")],
             editable=False,
         )
         if not accepted:
             return []
 
         start_dir = self._state.project_path.parent if self._state.project_path else Path.cwd()
-        if mode == "Jeden workbook s více listy":
+        if mode == opt_workbook:
             selected, _ = QFileDialog.getOpenFileName(
                 self,
-                "Vybrat workbook pro hromadný import",
+                t("dialog.select_workbook"),
                 str(start_dir),
-                "Excel Workbook (*.xlsx)",
+                t("filter.excel"),
             )
             if not selected:
                 return []
             return read_bulk_import_sources_from_workbook(Path(selected))
 
-        if mode == "Více souborů":
+        if mode == opt_files:
             selected, _ = QFileDialog.getOpenFileNames(
                 self,
-                "Vybrat soubory pro hromadný import",
+                t("dialog.select_files"),
                 str(start_dir),
-                "Podporované vstupy (*.txt *.tsv *.csv *.xlsx *.doc *.docx);;Všechny soubory (*)",
+                t("filter.input_files"),
             )
             if not selected:
                 return []
@@ -1041,7 +1030,7 @@ class MainWindow(QMainWindow):
 
         selected_directory = QFileDialog.getExistingDirectory(
             self,
-            "Vybrat složku pro hromadný import",
+            t("dialog.select_dir"),
             str(start_dir),
         )
         if not selected_directory:
@@ -1053,28 +1042,28 @@ class MainWindow(QMainWindow):
         overwrite_count = sum(1 for entry in plan if entry.overwrites_content)
         created_count = sum(1 for entry in plan if entry.creates_episode)
 
-        informative_parts = [f"Import začne od díla {first_target} a zpracuje {len(plan)} zdrojů."]
+        informative_parts = [t("bulk.plan.starts", label=first_target, count=len(plan))]
         if overwrite_count:
-            informative_parts.append(f"Přepíše obsah {overwrite_count} existujících děl.")
+            informative_parts.append(t("bulk.plan.overwrites", count=overwrite_count))
         if created_count:
-            informative_parts.append(f"Přidá {created_count} nových děl.")
+            informative_parts.append(t("bulk.plan.creates", count=created_count))
 
         preview_lines = []
         for entry in plan:
             target_number = entry.target_index + 1
-            suffix_parts = [f"Dílo {target_number}: {entry.target_label}"]
+            suffix_parts = [t("bulk.plan.episode", num=target_number, label=entry.target_label)]
             if entry.overwrites_content:
-                suffix_parts.append("přepíše obsah")
+                suffix_parts.append(t("bulk.plan.overwrites_suffix"))
             elif entry.creates_episode:
-                suffix_parts.append("nové dílo")
+                suffix_parts.append(t("bulk.plan.creates_suffix"))
             preview_lines.append(f"{entry.source_name} -> {' · '.join(suffix_parts)}")
 
         dialog = QMessageBox(self)
         dialog.setIcon(QMessageBox.Question)
-        dialog.setWindowTitle("Potvrdit hromadný import")
-        dialog.setText("Naimportovat vybrané zdroje do projektu?")
+        dialog.setWindowTitle(t("dialog.bulk_import.confirm_title"))
+        dialog.setText(t("dialog.bulk_import.confirm_msg"))
         dialog.setInformativeText("\n".join([*informative_parts, "", *preview_lines]))
-        import_button = dialog.addButton("Importovat", QMessageBox.AcceptRole)
+        import_button = dialog.addButton(t("dialog.bulk_import.btn"), QMessageBox.AcceptRole)
         dialog.addButton(QMessageBox.Cancel)
         dialog.setDefaultButton(import_button)
         dialog.exec()
@@ -1086,16 +1075,16 @@ class MainWindow(QMainWindow):
         self._episode_editors[episode_index].set_content("")
         self.refresh_analysis()
         self._update_window_title()
-        self.statusBar().showMessage(f"Dílo {label} bylo vyčištěno.", 3000)
+        self.statusBar().showMessage(t("status.episode_cleared", label=label), 3000)
 
     def export_workbook(self) -> None:
-        default_name = slugify_filename(self._state.title or "obsazeni")
+        default_name = slugify_filename(self._state.title or "casting")
         start_dir = self._state.project_path.parent if self._state.project_path else Path.cwd()
         selected, _ = QFileDialog.getSaveFileName(
             self,
-            "Export XLSX",
+            t("dialog.export_xlsx"),
             str(start_dir / f"{default_name}.xlsx"),
-            "Excel Workbook (*.xlsx)",
+            t("filter.excel"),
         )
         if not selected:
             return
@@ -1107,17 +1096,17 @@ class MainWindow(QMainWindow):
         try:
             workbook = self._state.export_workbook()
         except Exception as exc:  # noqa: BLE001
-            QMessageBox.critical(self, "Export selhal", str(exc))
+            QMessageBox.critical(self, t("error.export"), str(exc))
             return
 
         try:
             target.write_bytes(workbook)
         except OSError as exc:
-            QMessageBox.critical(self, "Export selhal", str(exc))
+            QMessageBox.critical(self, t("error.export"), str(exc))
             return
 
         self._apply_analysis(self._state.analysis)
-        self.statusBar().showMessage(f"Export hotový: {target.name}", 4000)
+        self.statusBar().showMessage(t("status.export_done", name=target.name), 4000)
 
     def _maybe_save(self) -> bool:
         if not self._state.dirty:
@@ -1125,9 +1114,9 @@ class MainWindow(QMainWindow):
 
         message_box = QMessageBox(self)
         message_box.setIcon(QMessageBox.Warning)
-        message_box.setWindowTitle("Neuložené změny")
-        message_box.setText("Projekt obsahuje neuložené změny.")
-        message_box.setInformativeText("Chceš je před pokračováním uložit?")
+        message_box.setWindowTitle(t("unsaved.title"))
+        message_box.setText(t("unsaved.text"))
+        message_box.setInformativeText(t("unsaved.info"))
         message_box.setStandardButtons(
             QMessageBox.Save | QMessageBox.Discard | QMessageBox.Cancel
         )
@@ -1139,6 +1128,70 @@ class MainWindow(QMainWindow):
         if result == QMessageBox.Cancel:
             return False
         return True
+
+    def _update_lang_action_checks(self) -> None:
+        lang = get_language()
+        self._lang_cs_action.setChecked(lang == "cs")
+        self._lang_en_action.setChecked(lang == "en")
+
+    def _switch_language(self, lang: str) -> None:
+        if get_language() == lang:
+            return
+        set_language(lang)
+        self._rebuild_ui_texts()
+        self.refresh_analysis()
+
+    def _rebuild_ui_texts(self) -> None:
+        # Actions
+        self._new_action.setText(t("action.new_project"))
+        self._open_action.setText(t("action.open_project"))
+        self._bulk_import_action.setText(t("action.bulk_import"))
+        self._save_action.setText(t("action.save_project"))
+        self._save_as_action.setText(t("action.save_as"))
+        self._recalculate_action.setText(t("action.recalculate"))
+        self._export_action.setText(t("action.export_xlsx"))
+        self._komplet_focus_action.setText(t("action.komplet_focus"))
+        self._komplet_focus_action.setToolTip(t("action.komplet_focus.tip"))
+        self._quit_action.setText(t("action.quit"))
+        self._lang_cs_action.setText(t("action.lang_cs"))
+        self._lang_en_action.setText(t("action.lang_en"))
+        self._update_lang_action_checks()
+        # Menus
+        self._file_menu.setTitle(t("menu.file"))
+        self._tools_menu.setTitle(t("menu.tools"))
+        self._lang_menu.setTitle(t("menu.language"))
+        # Labels & buttons
+        self._title_label.setText(t("label.project_name"))
+        self._title_edit.setPlaceholderText(t("title.placeholder"))
+        self._herci_by_episode_checkbox.setText(t("checkbox.herci_by_episode"))
+        self._herci_by_episode_checkbox.setToolTip(t("checkbox.herci_by_episode.tip"))
+        self._search_label.setText(t("label.search"))
+        self._show_label.setText(t("label.show"))
+        self._casting_search_edit.setPlaceholderText(t("search.placeholder"))
+        # Filter combo – update text keeping the data values
+        self._casting_filter_combo.setItemText(0, t("filter.all"))
+        self._casting_filter_combo.setItemText(1, t("filter.unassigned"))
+        self._casting_filter_combo.setItemText(2, t("filter.assigned"))
+        # Buttons
+        self._add_episode_button.setText(t("btn.add_episode"))
+        self._rename_episode_button.setText(t("btn.rename_episode"))
+        self._remove_episode_button.setText(t("btn.remove_episode"))
+        self._validation_action_button.setText(t("btn.unify_name"))
+        self._validation_action_button.setToolTip(t("btn.unify_name.tip"))
+        # Group boxes
+        if self._editor_group:
+            self._editor_group.setTitle(t("group.episodes"))
+        if self._komplet_group:
+            self._komplet_group.setTitle(t("group.komplet"))
+        if self._summary_group:
+            self._summary_group.setTitle(t("group.actor_summary"))
+        if self._validation_group:
+            self._validation_group.setTitle(t("group.validation"))
+        # Window title
+        self._update_window_title()
+        # Episode editor widgets
+        for editor in self._episode_editors:
+            editor.retranslate()
 
     def closeEvent(self, event: QCloseEvent) -> None:
         if self._maybe_save():

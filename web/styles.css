@@ -358,3 +358,14 @@ code {
     flex-direction: column;
   }
 }
+
+/* ─── Language switcher ─────────────────────────────────────────────────── */
+.lang-switcher {
+  display: flex;
+  gap: 4px;
+}
+.lang-switcher .button.is-active {
+  background: var(--accent, #8f4b2b);
+  color: #fff9f4;
+  border-color: var(--accent, #8f4b2b);
+}

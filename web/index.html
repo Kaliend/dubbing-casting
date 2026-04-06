@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Obsazování dabingu</title>
+    <title>Obsazování dabingu / Dubbing Casting</title>
     <link rel="stylesheet" href="/styles.css" />
   </head>
   <body>
@@ -11,20 +11,20 @@
       <header class="topbar">
         <div>
           <p class="eyebrow">Dabing Workspace</p>
-          <h1>Počítání replik a obsazování</h1>
-          <p class="lede">
-            Vlož vstupy po epizodách, nech si spočítat <strong>VSTUPY</strong> a
-            <strong>REPLIKY</strong> podle pravidla <code>ceil(slov / 8)</code>,
-            doplň dabéry a stáhni hotový <code>.xlsx</code> export.
-          </p>
+          <h1 data-i18n="title"></h1>
+          <p class="lede" data-i18n-html="lede"></p>
         </div>
         <div class="topbar-actions">
+          <div class="lang-switcher">
+            <button id="lang-cs-button" class="button button-ghost is-active" data-lang="cs">CS</button>
+            <button id="lang-en-button" class="button button-ghost" data-lang="en">EN</button>
+          </div>
           <label class="title-field">
-            <span>Název projektu</span>
-            <input id="project-title" type="text" value="Obsazení projektu" />
+            <span data-i18n="projectNameLabel"></span>
+            <input id="project-title" type="text" />
           </label>
-          <button id="analyze-button" class="button button-primary">Přepočítat</button>
-          <button id="export-button" class="button">Export XLSX</button>
+          <button id="analyze-button" class="button button-primary" data-i18n="recalculate"></button>
+          <button id="export-button" class="button" data-i18n="exportXlsx"></button>
         </div>
       </header>
 
@@ -32,13 +32,13 @@
         <section class="input-pane">
           <div class="section-header">
             <div>
-              <p class="section-kicker">Vstup</p>
-              <h2>Epizody</h2>
+              <p class="section-kicker" data-i18n="inputKicker"></p>
+              <h2 data-i18n="episodesHeading"></h2>
             </div>
             <div class="episode-actions">
-              <button id="clear-current-button" class="button button-ghost">Vyčistit aktivní</button>
+              <button id="clear-current-button" class="button button-ghost" data-i18n="clearActive"></button>
               <label class="file-button button button-ghost">
-                Načíst soubor
+                <span data-i18n="loadFile"></span>
                 <input id="episode-file-input" type="file" accept=".csv,.tsv,.txt" />
               </label>
             </div>
@@ -47,19 +47,18 @@
           <div id="episode-tabs" class="episode-tabs"></div>
 
           <label class="episode-editor">
-            <span id="episode-label">Epizoda 01</span>
+            <span id="episode-label"></span>
             <textarea
               id="episode-content"
               spellcheck="false"
-              placeholder="Sem vlož TSV/CSV s hlavičkami POSTAVA, TC, TEXT nebo POSTAVA, VSTUPY, REPLIKY."
             ></textarea>
           </label>
 
           <div class="format-hint">
-            <p>Podporované formáty:</p>
+            <p data-i18n="formatsSupported"></p>
             <ul>
-              <li><code>POSTAVA / TC / TEXT</code> pro surový dialogový výpis</li>
-              <li><code>POSTAVA / VSTUPY / REPLIKY</code> pro už spočítaný souhrn</li>
+              <li data-i18n-html="formatRaw"></li>
+              <li data-i18n-html="formatSummary"></li>
             </ul>
           </div>
         </section>
@@ -67,8 +66,8 @@
         <section class="main-pane">
           <div class="section-header">
             <div>
-              <p class="section-kicker">Obsazení</p>
-              <h2>Komplet postav</h2>
+              <p class="section-kicker" data-i18n="castingKicker"></p>
+              <h2 data-i18n="fullCastHeading"></h2>
             </div>
             <div id="summary-badges" class="summary-badges"></div>
           </div>
@@ -84,8 +83,8 @@
         <aside class="summary-pane">
           <div class="section-header">
             <div>
-              <p class="section-kicker">Souhrn</p>
-              <h2>Dabéři</h2>
+              <p class="section-kicker" data-i18n="summaryKicker"></p>
+              <h2 data-i18n="actorsHeading"></h2>
             </div>
           </div>
           <div id="actor-summary" class="actor-summary"></div>

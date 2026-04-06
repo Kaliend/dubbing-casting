@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any
 
 from .core import MAX_EPISODES, build_project, loose_match_key, normalize_actor, normalize_character, normalize_text
+from .i18n import t
 from .exporter import export_project_workbook
 from .project_store import (
     BulkImportSource,
@@ -79,7 +80,7 @@ class AppState:
     def save_project(self, path: Path | None = None) -> Path:
         target = Path(path) if path is not None else self.project_path
         if target is None:
-            raise ValueError("Chybí cílová cesta pro uložení projektu.")
+            raise ValueError(t("state.error.no_path"))
         save_project_file(target, self._payload)
         self.project_path = target
         self.dirty = False
@@ -119,17 +120,14 @@ class AppState:
         sources: list[BulkImportSource],
     ) -> list[BulkImportPlanEntry]:
         if not sources:
-            raise ValueError("Chybí zdroje pro hromadný import.")
+            raise ValueError(t("state.error.no_sources"))
         if start_episode_index < 0:
-            raise ValueError("Neplatná cílová pozice pro import.")
+            raise ValueError(t("state.error.bad_position"))
 
         end_index = start_episode_index + len(sources)
         if end_index > MAX_EPISODES:
             available = MAX_EPISODES - start_episode_index
-            raise ValueError(
-                f"Od vybraného díla je k dispozici jen {available} slotů, "
-                f"ale import vyžaduje {len(sources)} děl."
-            )
+            raise ValueError(t("state.error.no_slots", available=available, count=len(sources)))
 
         episodes = list(self._payload.get("episodes", []))
         reserved_labels = [
@@ -163,7 +161,7 @@ class AppState:
 
     def apply_bulk_import(self, plan: list[BulkImportPlanEntry]) -> list[int]:
         if not plan:
-            raise ValueError("Chybí plán hromadného importu.")
+            raise ValueError(t("state.error.no_plan"))
 
         episodes = self._payload.setdefault("episodes", [])
         highest_target = max(entry.target_index for entry in plan)
@@ -181,7 +179,7 @@ class AppState:
     def add_episode(self) -> int:
         episodes = self._payload.setdefault("episodes", [])
         if len(episodes) >= MAX_EPISODES:
-            raise ValueError(f"Projekt může obsahovat maximálně {MAX_EPISODES} děl.")
+            raise ValueError(t("state.error.max_episodes", max=MAX_EPISODES))
 
         episodes.append(make_episode_payload(len(episodes), next_episode_label(episodes)))
         self.dirty = True
@@ -190,17 +188,17 @@ class AppState:
     def rename_episode(self, episode_index: int, label: str) -> None:
         episodes = self._payload.get("episodes", [])
         if not 0 <= episode_index < len(episodes):
-            raise IndexError("Dílo neexistuje.")
+            raise IndexError(t("state.error.episode_not_found"))
 
         normalized_label = normalize_text(label)
         if not normalized_label:
-            raise ValueError("Název díla nesmí být prázdný.")
+            raise ValueError(t("state.error.empty_label"))
 
         for index, episode in enumerate(episodes):
             if index == episode_index:
                 continue
             if normalize_text(str(episode.get("label", ""))) == normalized_label:
-                raise ValueError(f"Dílo s názvem „{normalized_label}“ už existuje.")
+                raise ValueError(t("state.error.duplicate_label", label=normalized_label))
 
         if normalize_text(str(episodes[episode_index].get("label", ""))) == normalized_label:
             return
@@ -210,9 +208,9 @@ class AppState:
     def remove_episode(self, episode_index: int) -> None:
         episodes = self._payload.get("episodes", [])
         if len(episodes) <= 1:
-            raise ValueError("Projekt musí obsahovat alespoň jedno dílo.")
+            raise ValueError(t("state.error.min_episodes"))
         if not 0 <= episode_index < len(episodes):
-            raise IndexError("Dílo neexistuje.")
+            raise IndexError(t("state.error.episode_not_found"))
 
         episodes.pop(episode_index)
         self.dirty = True
@@ -228,7 +226,7 @@ class AppState:
     def unify_actor_variants(self, variants: list[str], target_name: str) -> int:
         normalized_target = normalize_actor(target_name)
         if not normalized_target:
-            raise ValueError("Cílový název dabéra nesmí být prázdný.")
+            raise ValueError(t("state.error.empty_actor"))
 
         variant_keys = {
             loose_match_key(normalize_actor(variant))
@@ -237,7 +235,7 @@ class AppState:
         }
         variant_keys.discard("")
         if not variant_keys:
-            raise ValueError("Chybí varianty dabéra ke sjednocení.")
+            raise ValueError(t("state.error.no_variants"))
 
         assignments = self._payload.setdefault("assignments", {})
         changed = 0

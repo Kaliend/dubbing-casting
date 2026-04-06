@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any, Mapping
 
 from .core import MAX_EPISODES, normalize_text
+from .i18n import t
 from .importers import (
     ImportableWorkbookSheet,
     ImportedEpisodeSource,
@@ -108,7 +109,7 @@ def _bulk_import_source_from_imported(path: Path, imported: ImportedEpisodeSourc
 
 def read_bulk_import_sources_from_workbook(path: Path) -> list[BulkImportSource]:
     if path.suffix.lower() != ".xlsx":
-        raise ValueError("Hromadný import workbooku podporuje jen .xlsx soubory.")
+        raise ValueError(t("store.error.workbook_not_xlsx"))
 
     options = list_importable_xlsx_sheets(path)
     return [
@@ -124,7 +125,7 @@ def read_bulk_import_sources_from_workbook(path: Path) -> list[BulkImportSource]
 
 def read_bulk_import_sources_from_files(paths: list[Path]) -> list[BulkImportSource]:
     if not paths:
-        raise ValueError("Nebyly vybrány žádné soubory pro hromadný import.")
+        raise ValueError(t("store.error.no_files"))
 
     sources: list[BulkImportSource] = []
     for path in sorted(paths, key=lambda item: item.name.casefold()):
@@ -135,10 +136,7 @@ def read_bulk_import_sources_from_files(paths: list[Path]) -> list[BulkImportSou
         if suffix == ".xlsx":
             options = list_importable_xlsx_sheets(path)
             if len(options) != 1:
-                raise ValueError(
-                    f"Soubor {path.name} obsahuje více použitelných listů. "
-                    "Pro takový workbook použij režim „Jeden workbook s více listy“."
-                )
+                raise ValueError(t("store.error.multi_sheet", name=path.name))
             option = options[0]
             sources.append(
                 BulkImportSource(
@@ -154,13 +152,13 @@ def read_bulk_import_sources_from_files(paths: list[Path]) -> list[BulkImportSou
         sources.append(_bulk_import_source_from_imported(path, imported))
 
     if not sources:
-        raise ValueError("Ve vybraných souborech nebyl nalezen žádný podporovaný vstup.")
+        raise ValueError(t("store.error.no_inputs"))
     return sources
 
 
 def read_bulk_import_sources_from_directory(path: Path) -> list[BulkImportSource]:
     if not path.is_dir():
-        raise ValueError(f"{path.name} není platná složka.")
+        raise ValueError(t("store.error.not_dir", name=path.name))
 
     files = [
         child
@@ -168,14 +166,14 @@ def read_bulk_import_sources_from_directory(path: Path) -> list[BulkImportSource
         if child.is_file() and not child.name.startswith(".") and child.suffix.lower() in SUPPORTED_IMPORT_SUFFIXES
     ]
     if not files:
-        raise ValueError("Ve vybrané složce nebyly nalezeny podporované soubory.")
+        raise ValueError(t("store.error.empty_dir"))
     return read_bulk_import_sources_from_files(files)
 
 
 def empty_project_payload(count: int = DEFAULT_EPISODE_COUNT) -> dict[str, Any]:
     episode_count = clamp_episode_count(count)
     return {
-        "title": DEFAULT_PROJECT_TITLE,
+        "title": t("project.default_title"),
         "episodes": [make_episode_payload(index) for index in range(episode_count)],
         "assignments": {},
         "exportOptions": dict(DEFAULT_EXPORT_OPTIONS),
@@ -234,10 +232,10 @@ def load_project_file(path: Path) -> dict[str, Any]:
     try:
         raw_payload = json.loads(path.read_text(encoding="utf-8"))
     except json.JSONDecodeError as exc:
-        raise ValueError(f"Soubor {path.name} neobsahuje platný JSON projekt.") from exc
+        raise ValueError(t("store.error.invalid_json", name=path.name)) from exc
 
     if not isinstance(raw_payload, Mapping):
-        raise ValueError("Projektový JSON musí obsahovat objekt s title, episodes a assignments.")
+        raise ValueError(t("store.error.invalid_json_structure"))
 
     return normalize_project_payload(raw_payload)
 

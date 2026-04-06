@@ -3,6 +3,8 @@ from __future__ import annotations
 from PySide6.QtCore import QSignalBlocker, Signal
 from PySide6.QtWidgets import QHBoxLayout, QLabel, QPushButton, QPlainTextEdit, QVBoxLayout, QWidget
 
+from obsazovani.i18n import t
+
 
 class EpisodeEditorWidget(QWidget):
     contentChanged = Signal(int, str)
@@ -13,17 +15,13 @@ class EpisodeEditorWidget(QWidget):
         super().__init__(parent)
         self._episode_index = episode_index
 
-        intro_label = QLabel(
-            "Podporované formáty: TXT/CSV/TSV/XLSX s poli POSTAVA / TC / TEXT nebo POSTAVA / VSTUPY / REPLIKY."
-        )
+        intro_label = QLabel(t("editor.intro"))
         intro_label.setWordWrap(True)
 
-        self._load_button = QPushButton("Načíst soubor")
-        self._clear_button = QPushButton("Vyčistit dílo")
+        self._load_button = QPushButton(t("editor.load"))
+        self._clear_button = QPushButton(t("editor.clear"))
         self._editor = QPlainTextEdit()
-        self._editor.setPlaceholderText(
-            f"Dílo {episode_label}: vlož TSV/CSV/TXT nebo importuj XLSX s hlavičkami POSTAVA, TC, TEXT nebo POSTAVA, VSTUPY, REPLIKY."
-        )
+        self._editor.setPlaceholderText(t("editor.placeholder", label=episode_label))
 
         action_row = QHBoxLayout()
         action_row.addWidget(self._load_button)
@@ -46,6 +44,12 @@ class EpisodeEditorWidget(QWidget):
         blocker = QSignalBlocker(self._editor)
         self._editor.setPlainText(content)
         del blocker
+
+    def retranslate(self) -> None:
+        self._load_button.setText(t("editor.load"))
+        self._clear_button.setText(t("editor.clear"))
+        episode_label = self._editor.placeholderText().split(":")[0]
+        self._editor.setPlaceholderText(t("editor.placeholder", label=episode_label))
 
     def _emit_content(self) -> None:
         self.contentChanged.emit(self._episode_index, self._editor.toPlainText())
