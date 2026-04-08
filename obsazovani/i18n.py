@@ -217,6 +217,17 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         # --- exporter status cell ---
         "export.missing_status": "JEŠTĚ CHYBÍ DOPLNIT {chars} POSTAV, {inputs} VSTUPŮ A {replicas} REPLIK.",
         "export.complete_status": "VŠECHNY POSTAVY OBSAZENY.",
+        # --- main tabs ---
+        "tab.prehled": "Přehled",
+        "tab.herci": "Herci",
+        "tab.komplet": "Komplet",
+        "tab.daberi": "Dabéři",
+        # --- panel toggles ---
+        "toggle.panels": "Panely:",
+        "toggle.dila": "Díla",
+        "toggle.komplet": "Komplet",
+        "toggle.summary": "Souhrn dabérů",
+        "toggle.validation": "Validace",
     },
     "en": {
         # --- actions ---
@@ -430,6 +441,17 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         # --- exporter status cell ---
         "export.missing_status": "STILL MISSING {chars} CHARACTERS, {inputs} INPUTS AND {replicas} REPLICAS.",
         "export.complete_status": "ALL CHARACTERS ASSIGNED.",
+        # --- main tabs ---
+        "tab.prehled": "Overview",
+        "tab.herci": "Actors",
+        "tab.komplet": "Full Cast",
+        "tab.daberi": "Voice Actors",
+        # --- panel toggles ---
+        "toggle.panels": "Panels:",
+        "toggle.dila": "Episodes",
+        "toggle.komplet": "Full Cast",
+        "toggle.summary": "Actor Summary",
+        "toggle.validation": "Validation",
     },
 }
 

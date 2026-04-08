@@ -84,6 +84,8 @@ class MainWindow(QMainWindow):
         self._casting_model = CastingTableModel(self)
         self._casting_proxy_model = CastingFilterProxyModel(self)
         self._casting_proxy_model.setSourceModel(self._casting_model)
+        self._komplet_tab_proxy_model = CastingFilterProxyModel(self)
+        self._komplet_tab_proxy_model.setSourceModel(self._casting_model)
         self._actor_model = ActorSummaryTableModel(self)
         self._validation_model = ValidationTableModel(self)
         self._episode_editors: list[EpisodeEditorWidget] = []
@@ -96,6 +98,23 @@ class MainWindow(QMainWindow):
         self._right_splitter: QSplitter | None = None
         self._saved_root_splitter_sizes: list[int] | None = None
         self._saved_right_splitter_sizes: list[int] | None = None
+        # Main tabs
+        self._main_tabs: QTabWidget | None = None
+        # Panel toggle checkboxes (Přehled tab)
+        self._toggle_panels_label: QLabel | None = None
+        self._toggle_dila: QCheckBox | None = None
+        self._toggle_komplet_panel: QCheckBox | None = None
+        self._toggle_summary_panel: QCheckBox | None = None
+        self._toggle_validation_panel: QCheckBox | None = None
+        # Komplet tab widgets
+        self._komplet_tab_table: QTableView | None = None
+        self._komplet_tab_search_edit: QLineEdit | None = None
+        self._komplet_tab_filter_combo: QComboBox | None = None
+        self._komplet_tab_search_label: QLabel | None = None
+        self._komplet_tab_show_label: QLabel | None = None
+        # Dabéři tab widgets
+        self._daberi_tab_actor_table: QTableView | None = None
+        self._daberi_tab_validation_table: QTableView | None = None
 
         self._create_actions()
         self._build_ui()
@@ -335,13 +354,118 @@ class MainWindow(QMainWindow):
         root_splitter.setStretchFactor(1, 6)
         self._root_splitter = root_splitter
 
+        # ── Panel toggle bar (Přehled tab) ───────────────────────────────────
+        self._toggle_dila = QCheckBox(t("toggle.dila"))
+        self._toggle_dila.setChecked(True)
+        self._toggle_komplet_panel = QCheckBox(t("toggle.komplet"))
+        self._toggle_komplet_panel.setChecked(True)
+        self._toggle_summary_panel = QCheckBox(t("toggle.summary"))
+        self._toggle_summary_panel.setChecked(True)
+        self._toggle_validation_panel = QCheckBox(t("toggle.validation"))
+        self._toggle_validation_panel.setChecked(True)
+
+        self._toggle_panels_label = QLabel(t("toggle.panels"))
+        toggle_bar_layout = QHBoxLayout()
+        toggle_bar_layout.setContentsMargins(0, 0, 0, 0)
+        toggle_bar_layout.setSpacing(12)
+        toggle_bar_layout.addWidget(self._toggle_panels_label)
+        toggle_bar_layout.addWidget(self._toggle_dila)
+        toggle_bar_layout.addWidget(self._toggle_komplet_panel)
+        toggle_bar_layout.addWidget(self._toggle_summary_panel)
+        toggle_bar_layout.addWidget(self._toggle_validation_panel)
+        toggle_bar_layout.addStretch(1)
+
+        prehled_widget = QWidget()
+        prehled_layout = QVBoxLayout(prehled_widget)
+        prehled_layout.setContentsMargins(0, 4, 0, 0)
+        prehled_layout.setSpacing(8)
+        prehled_layout.addLayout(toggle_bar_layout)
+        prehled_layout.addWidget(root_splitter, 1)
+
+        # ── Komplet tab ───────────────────────────────────────────────────────
+        self._komplet_tab_search_edit = QLineEdit()
+        self._komplet_tab_search_edit.setClearButtonEnabled(True)
+        self._komplet_tab_search_edit.setPlaceholderText(t("search.placeholder"))
+        self._komplet_tab_filter_combo = QComboBox()
+        self._komplet_tab_filter_combo.addItem(t("filter.all"), CastingFilterProxyModel.FILTER_ALL)
+        self._komplet_tab_filter_combo.addItem(t("filter.unassigned"), CastingFilterProxyModel.FILTER_UNASSIGNED)
+        self._komplet_tab_filter_combo.addItem(t("filter.assigned"), CastingFilterProxyModel.FILTER_ASSIGNED)
+        self._komplet_tab_search_label = QLabel(t("label.search"))
+        self._komplet_tab_show_label = QLabel(t("label.show"))
+
+        komplet_tab_tools_row = QHBoxLayout()
+        komplet_tab_tools_row.addWidget(self._komplet_tab_search_label)
+        komplet_tab_tools_row.addWidget(self._komplet_tab_search_edit, 1)
+        komplet_tab_tools_row.addWidget(self._komplet_tab_show_label)
+        komplet_tab_tools_row.addWidget(self._komplet_tab_filter_combo)
+
+        self._komplet_tab_table = QTableView()
+        self._komplet_tab_table.setModel(self._komplet_tab_proxy_model)
+        self._komplet_tab_table.setAlternatingRowColors(True)
+        self._komplet_tab_table.setSelectionBehavior(QTableView.SelectRows)
+        self._komplet_tab_table.setSelectionMode(QTableView.SingleSelection)
+        self._komplet_tab_table.setItemDelegate(CastingEditorDelegate(self._komplet_tab_table))
+        self._komplet_tab_table.setSortingEnabled(True)
+        self._komplet_tab_table.verticalHeader().setVisible(False)
+        self._komplet_tab_table.horizontalHeader().setStretchLastSection(False)
+        self._configure_komplet_tab_table_columns()
+        self._configure_casting_table_appearance(self._komplet_tab_table)
+
+        komplet_tab_widget = QWidget()
+        komplet_tab_layout = QVBoxLayout(komplet_tab_widget)
+        komplet_tab_layout.setContentsMargins(0, 4, 0, 0)
+        komplet_tab_layout.setSpacing(8)
+        komplet_tab_layout.addLayout(komplet_tab_tools_row)
+        komplet_tab_layout.addWidget(self._komplet_tab_table, 1)
+
+        # ── Dabéři tab ────────────────────────────────────────────────────────
+        self._daberi_tab_actor_table = QTableView()
+        self._daberi_tab_actor_table.setModel(self._actor_model)
+        self._daberi_tab_actor_table.setAlternatingRowColors(True)
+        self._daberi_tab_actor_table.setSelectionBehavior(QTableView.SelectRows)
+        self._daberi_tab_actor_table.setSelectionMode(QTableView.SingleSelection)
+        self._daberi_tab_actor_table.setEditTriggers(QTableView.NoEditTriggers)
+        self._daberi_tab_actor_table.verticalHeader().setVisible(False)
+        self._daberi_tab_actor_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.Stretch)
+        self._daberi_tab_actor_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeToContents)
+        self._daberi_tab_actor_table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeToContents)
+
+        self._daberi_tab_validation_table = QTableView()
+        self._daberi_tab_validation_table.setModel(self._validation_model)
+        self._daberi_tab_validation_table.setAlternatingRowColors(False)
+        self._daberi_tab_validation_table.setSelectionBehavior(QTableView.SelectRows)
+        self._daberi_tab_validation_table.setSelectionMode(QTableView.SingleSelection)
+        self._daberi_tab_validation_table.setEditTriggers(QTableView.NoEditTriggers)
+        self._daberi_tab_validation_table.setWordWrap(True)
+        self._daberi_tab_validation_table.verticalHeader().setVisible(False)
+        self._daberi_tab_validation_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeToContents)
+        self._daberi_tab_validation_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeToContents)
+        self._daberi_tab_validation_table.horizontalHeader().setSectionResizeMode(2, QHeaderView.Stretch)
+
+        daberi_splitter = QSplitter(Qt.Vertical)
+        daberi_splitter.addWidget(self._daberi_tab_actor_table)
+        daberi_splitter.addWidget(self._daberi_tab_validation_table)
+        daberi_splitter.setStretchFactor(0, 3)
+        daberi_splitter.setStretchFactor(1, 2)
+
+        daberi_widget = QWidget()
+        daberi_layout = QVBoxLayout(daberi_widget)
+        daberi_layout.setContentsMargins(0, 4, 0, 0)
+        daberi_layout.addWidget(daberi_splitter, 1)
+
+        # ── Hlavní záložky ────────────────────────────────────────────────────
+        self._main_tabs = QTabWidget()
+        self._main_tabs.addTab(prehled_widget, t("tab.prehled"))
+        self._main_tabs.addTab(komplet_tab_widget, t("tab.komplet"))
+        self._main_tabs.addTab(daberi_widget, t("tab.daberi"))
+
         central = QWidget()
         central_layout = QVBoxLayout(central)
         central_layout.setContentsMargins(12, 12, 12, 12)
         central_layout.setSpacing(12)
         central_layout.addLayout(title_row)
         central_layout.addLayout(export_options_row)
-        central_layout.addWidget(root_splitter, 1)
+        central_layout.addWidget(self._main_tabs, 1)
         self.setCentralWidget(central)
 
     def _connect_signals(self) -> None:
@@ -356,6 +480,20 @@ class MainWindow(QMainWindow):
         self._rename_episode_button.clicked.connect(self.rename_current_episode)
         self._remove_episode_button.clicked.connect(self.remove_current_episode)
         self._episode_tabs.currentChanged.connect(self._update_episode_controls)
+        # Panel toggle checkboxes
+        if self._toggle_dila:
+            self._toggle_dila.toggled.connect(lambda checked: self._toggle_panel(self._editor_group, checked))
+        if self._toggle_komplet_panel:
+            self._toggle_komplet_panel.toggled.connect(lambda checked: self._toggle_panel(self._komplet_group, checked))
+        if self._toggle_summary_panel:
+            self._toggle_summary_panel.toggled.connect(lambda checked: self._toggle_panel(self._summary_group, checked))
+        if self._toggle_validation_panel:
+            self._toggle_validation_panel.toggled.connect(lambda checked: self._toggle_panel(self._validation_group, checked))
+        # Komplet tab search/filter
+        if self._komplet_tab_search_edit:
+            self._komplet_tab_search_edit.textChanged.connect(self._handle_komplet_tab_search_changed)
+        if self._komplet_tab_filter_combo:
+            self._komplet_tab_filter_combo.currentIndexChanged.connect(self._handle_komplet_tab_filter_changed)
 
     def _apply_style(self) -> None:
         self.setStyleSheet(
@@ -403,8 +541,10 @@ class MainWindow(QMainWindow):
             """
         )
 
-    def _configure_casting_table_appearance(self) -> None:
-        palette = self._casting_table.palette()
+    def _configure_casting_table_appearance(self, table: QTableView | None = None) -> None:
+        if table is None:
+            table = self._casting_table
+        palette = table.palette()
         palette.setColor(QPalette.Base, QColor("#fffdf9"))
         palette.setColor(QPalette.AlternateBase, QColor("#f6efe6"))
         palette.setColor(QPalette.Text, QColor("#20170f"))
@@ -413,8 +553,8 @@ class MainWindow(QMainWindow):
         palette.setColor(QPalette.Button, QColor("#efe4d8"))
         palette.setColor(QPalette.ButtonText, QColor("#20170f"))
         palette.setColor(QPalette.WindowText, QColor("#20170f"))
-        self._casting_table.setPalette(palette)
-        self._casting_table.setStyleSheet(
+        table.setPalette(palette)
+        table.setStyleSheet(
             """
             QTableView {
                 background: #fffdf9;
@@ -459,6 +599,18 @@ class MainWindow(QMainWindow):
 
     def _configure_casting_table_columns(self) -> None:
         header = self._casting_table.horizontalHeader()
+        header.setSectionResizeMode(0, QHeaderView.ResizeToContents)
+        for column in range(1, self._casting_model.episode_count + 1):
+            header.setSectionResizeMode(column, QHeaderView.ResizeToContents)
+        header.setSectionResizeMode(self._casting_model.inputs_column, QHeaderView.ResizeToContents)
+        header.setSectionResizeMode(self._casting_model.replicas_column, QHeaderView.ResizeToContents)
+        header.setSectionResizeMode(self._casting_model.actor_column, QHeaderView.ResizeToContents)
+        header.setSectionResizeMode(self._casting_model.note_column, QHeaderView.Stretch)
+
+    def _configure_komplet_tab_table_columns(self) -> None:
+        if self._komplet_tab_table is None:
+            return
+        header = self._komplet_tab_table.horizontalHeader()
         header.setSectionResizeMode(0, QHeaderView.ResizeToContents)
         for column in range(1, self._casting_model.episode_count + 1):
             header.setSectionResizeMode(column, QHeaderView.ResizeToContents)
@@ -548,6 +700,19 @@ class MainWindow(QMainWindow):
         mode = str(self._casting_filter_combo.itemData(current_index) or CastingFilterProxyModel.FILTER_ALL)
         self._casting_proxy_model.set_assignment_filter(mode)
 
+    def _handle_komplet_tab_search_changed(self, text: str) -> None:
+        self._komplet_tab_proxy_model.set_search_text(text)
+
+    def _handle_komplet_tab_filter_changed(self, current_index: int) -> None:
+        if self._komplet_tab_filter_combo is None:
+            return
+        mode = str(self._komplet_tab_filter_combo.itemData(current_index) or CastingFilterProxyModel.FILTER_ALL)
+        self._komplet_tab_proxy_model.set_assignment_filter(mode)
+
+    def _toggle_panel(self, group: QWidget | None, visible: bool) -> None:
+        if group is not None:
+            group.setVisible(visible)
+
     def _handle_episode_changed(self, episode_index: int, content: str) -> None:
         self._state.set_episode_content(episode_index, content)
         self._update_window_title()
@@ -609,6 +774,16 @@ class MainWindow(QMainWindow):
             self._validation_group.hide()
             self._root_splitter.setSizes([0, max(1, self._default_root_splitter_sizes()[1])])
             self._right_splitter.setSizes([max(1, self._default_right_splitter_sizes()[0]), 0, 0])
+            for toggle, state in (
+                (self._toggle_dila, False),
+                (self._toggle_summary_panel, False),
+                (self._toggle_validation_panel, False),
+                (self._toggle_komplet_panel, True),
+            ):
+                if toggle is not None:
+                    blocker = QSignalBlocker(toggle)
+                    toggle.setChecked(state)
+                    del blocker
             self.statusBar().showMessage(t("status.komplet_on"), 3000)
             return
 
@@ -616,6 +791,11 @@ class MainWindow(QMainWindow):
         self._summary_group.show()
         self._validation_group.show()
         self._restore_splitter_sizes()
+        for toggle in (self._toggle_dila, self._toggle_komplet_panel, self._toggle_summary_panel, self._toggle_validation_panel):
+            if toggle is not None:
+                blocker = QSignalBlocker(toggle)
+                toggle.setChecked(True)
+                del blocker
         self.statusBar().showMessage(t("status.komplet_off"), 3000)
 
     def _update_window_title(self) -> None:
@@ -651,6 +831,7 @@ class MainWindow(QMainWindow):
     def _apply_analysis(self, analysis: dict) -> None:
         self._casting_model.set_analysis(analysis)
         self._configure_casting_table_columns()
+        self._configure_komplet_tab_table_columns()
         self._actor_model.set_analysis(analysis)
         self._validation_model.set_analysis(analysis)
         self._validation_table.clearSelection()
@@ -1187,6 +1368,33 @@ class MainWindow(QMainWindow):
             self._summary_group.setTitle(t("group.actor_summary"))
         if self._validation_group:
             self._validation_group.setTitle(t("group.validation"))
+        # Main tabs
+        if self._main_tabs:
+            self._main_tabs.setTabText(0, t("tab.prehled"))
+            self._main_tabs.setTabText(1, t("tab.komplet"))
+            self._main_tabs.setTabText(2, t("tab.daberi"))
+        # Panel toggles
+        if self._toggle_panels_label:
+            self._toggle_panels_label.setText(t("toggle.panels"))
+        if self._toggle_dila:
+            self._toggle_dila.setText(t("toggle.dila"))
+        if self._toggle_komplet_panel:
+            self._toggle_komplet_panel.setText(t("toggle.komplet"))
+        if self._toggle_summary_panel:
+            self._toggle_summary_panel.setText(t("toggle.summary"))
+        if self._toggle_validation_panel:
+            self._toggle_validation_panel.setText(t("toggle.validation"))
+        # Komplet tab search/filter
+        if self._komplet_tab_search_label:
+            self._komplet_tab_search_label.setText(t("label.search"))
+        if self._komplet_tab_show_label:
+            self._komplet_tab_show_label.setText(t("label.show"))
+        if self._komplet_tab_search_edit:
+            self._komplet_tab_search_edit.setPlaceholderText(t("search.placeholder"))
+        if self._komplet_tab_filter_combo:
+            self._komplet_tab_filter_combo.setItemText(0, t("filter.all"))
+            self._komplet_tab_filter_combo.setItemText(1, t("filter.unassigned"))
+            self._komplet_tab_filter_combo.setItemText(2, t("filter.assigned"))
         # Window title
         self._update_window_title()
         # Episode editor widgets
